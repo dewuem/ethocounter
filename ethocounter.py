@@ -60,7 +60,7 @@ from collections import defaultdict
 import re
 
 
-def parse_time(time_str):
+def parse_time(time_str: str) -> int:
     """Parse time from HH:MM:SS format to seconds."""
     if re.match(r"\d{2}:\d{2}:\d{2}", time_str):
         h, m, s = map(int, time_str.split(":"))
@@ -121,7 +121,7 @@ stroke_summary = defaultdict(list)
 
 
 # using curses to record keyboard events
-def main(waiting):
+def main(waiting) -> None:
     waiting.nodelay(True)
     waiting.scrollok(True)
     key = ""
@@ -201,7 +201,7 @@ def main(waiting):
             pass
 
 
-def flashing(self):
+def flashing(self) -> None:
     self.addstr("TIME OUT")
     curses.beep()
     curses.flash()
@@ -214,30 +214,26 @@ curses.wrapper(main)
 # notify the user that the program is done
 curses.wrapper(flashing)
 
-# sum up the summary lists (yes this has to be done that way - somehow curses does
-# not like to modify a dictionary value internally)
-for i in stroke_summary:
-    stroke_summary[i] = sum(stroke_summary[i])
+# Sum up the summary lists
+for key in list(stroke_summary.keys()):  # Create a list of keys to iterate over
+    stroke_summary[key] = sum(stroke_summary[key])
+
+# Remove the entry with an empty string key, if it exists
 drop = stroke_summary.pop("", None)
 
-# write the output
-with open(
-    sys.argv[1] + "_" + str(observation).zfill(padding) + "_ethoc.csv", "w"
-) as writefile:
-    # write a header
-    writefile.write("Time in ms,key pressed\n")
-    # write all elements in the dictionary
-    for i, j in sorted(strokes.items(), key=lambda x: x[0]):
-        # lambda function to have the output of the dict ordered
-        writefile.write(str(i) + "," + str(j) + "\n")
+# Define the base file name
+base_file_name = args.base_name + "_" + str(observation).zfill(padding)
 
-with open(
-    sys.argv[1] + "_" + str(observation).zfill(padding) + "_summary.csv", "w"
-) as writefile:
-    # write a header
+# Write to the ethoc CSV file
+ethoc_file_path = args.output_dir / (base_file_name + "_ethoc.csv")
+with ethoc_file_path.open("w") as writefile:
+    writefile.write("Time in ms,key pressed\n")
+    for i, j in sorted(strokes.items(), key=lambda x: x[0]):
+        writefile.write(f"{i},{j}\n")
+
+# Write to the summary CSV file
+summary_file_path = args.output_dir / (base_file_name + "_summary.csv")
+with summary_file_path.open("w") as writefile:
     writefile.write("key pressed,summed up time\n")
-    # write all elements in the dictionary
     for i, j in sorted(stroke_summary.items(), key=lambda x: x[0]):
-        # skipping first line as it is empty
-        # lambda function to have the output of the dict ordered
-        writefile.write(str(i) + "," + str(j) + "\n")
+        writefile.write(f"{i},{j}\n")
