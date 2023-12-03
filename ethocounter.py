@@ -50,7 +50,6 @@ Settings:
     Specify the number of fixed digits in the filename. Default is 4.
 """
 
-padding = 4  # 4
 
 import argparse
 import pathlib
@@ -65,8 +64,9 @@ def parse_time(time_str: str) -> int:
     if re.match(r"\d{2}:\d{2}:\d{2}", time_str):
         h, m, s = map(int, time_str.split(":"))
         return h * 3600 + m * 60 + s
-    else:
-        raise ValueError("Time must be in HH:MM:SS format")
+    if time_str.isdigit():
+        return int(time_str)
+    raise ValueError("Time format is invalid. Please use HH:MM:SS or seconds format.")
 
 
 # Set up argument parsing
@@ -84,18 +84,25 @@ parser.add_argument(
     help="Duration of observation in seconds or in HH:MM:SS format (optional).",
 )
 parser.add_argument(
-    "--time_format",
-    choices=["seconds", "HH:MM:SS"],
-    default="seconds",
-    help="Format of observation time. 'seconds' for integer seconds, 'HH:MM:SS' for time format.",
+    "-o",
+    "--output_dir",
+    type=pathlib.Path,
+    default=".",
+    help="Where should the output be stored?",
 )
-parser.add_argument("-o", "--output_dir", type=pathlib.Path, default=".")
+parser.add_argument(
+    "-p",
+    "--padding",
+    type=int,
+    default=4,
+    help="How many zeros should be used to pad the counter.",
+)
 
 # Parse arguments
 args = parser.parse_args()
 
 # Convert observation_time to seconds if in HH:MM:SS format
-if args.observation_time and args.time_format == "HH:MM:SS":
+if args.observation_time:
     try:
         args.observation_time = parse_time(args.observation_time)
     except ValueError as e:
@@ -222,7 +229,7 @@ for key in list(stroke_summary.keys()):  # Create a list of keys to iterate over
 drop = stroke_summary.pop("", None)
 
 # Define the base file name
-base_file_name = args.base_name + "_" + str(observation).zfill(padding)
+base_file_name = args.base_name + "_" + str(observation).zfill(args.padding)
 
 # Write to the ethoc CSV file
 ethoc_file_path = args.output_dir / (base_file_name + "_ethoc.csv")
