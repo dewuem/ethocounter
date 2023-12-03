@@ -56,6 +56,7 @@ import pathlib
 import time
 import curses
 from collections import defaultdict
+from typing import Dict
 import re
 
 
@@ -221,12 +222,15 @@ curses.wrapper(main)
 # notify the user that the program is done
 curses.wrapper(flashing)
 
+
 # Sum up the summary lists
+stroke_summary_sums: Dict[str, int] = {}
+
 for key in list(stroke_summary.keys()):  # Create a list of keys to iterate over
-    stroke_summary[key] = sum(stroke_summary[key])
+    stroke_summary_sums[key] = sum(stroke_summary[key])
 
 # Remove the entry with an empty string key, if it exists
-drop = stroke_summary.pop("", None)
+drop = stroke_summary_sums.pop("", None)
 
 # Define the base file name
 base_file_name = args.base_name + "_" + str(observation).zfill(args.padding)
@@ -242,5 +246,5 @@ with ethoc_file_path.open("w") as writefile:
 summary_file_path = args.output_dir / (base_file_name + "_summary.csv")
 with summary_file_path.open("w") as writefile:
     writefile.write("key pressed,summed up time\n")
-    for i, j in sorted(stroke_summary.items(), key=lambda x: x[0]):
+    for i, j in sorted(stroke_summary_sums.items(), key=lambda x: x[0]):
         writefile.write(f"{i},{j}\n")
