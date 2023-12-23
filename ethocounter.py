@@ -18,9 +18,9 @@ Usage:
     press events and another summarizing the duration of each "condition" in milliseconds.
 
 Warning:
-    The script includes a terminal flash at the end of the execution. If you are epileptic, avoid
-    using this script or disable the flashing by removing the line "curses.flash()." Note that not
-    all terminals support this feature, but Xterm should.
+    The script includes a terminal flash at the end of the execution. If you are photosensitive, 
+    you might wish to avoid using this script or disable the flashing by removing the line
+    "curses.flash()." Note that not all terminals support this feature, but Xterm should.
 
 License:
     MIT License
