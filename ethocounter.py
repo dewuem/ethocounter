@@ -119,9 +119,9 @@ for filename in base_path.glob("*_ethoc.csv"):
 # Determine observation time
 if args.observation_time is not None:
     observation_time = int(args.observation_time)
-    run_forever = False
+    RUN_FOREVER = False
 else:
-    run_forever = True
+    RUN_FOREVER = True
 
 # Initialize dictionaries for recording keystrokes and summaries
 strokes = dict()
@@ -130,14 +130,28 @@ stroke_summary = defaultdict(list)
 
 # using curses to record keyboard events
 def main(waiting) -> None:
+    """The main function waits for key presses and records observations.
+
+    It records key presses and initiates the main loop. After the main loop,  it writes
+    the output files.
+
+    Args:
+        waiting: Object to interact with curses
+    """
     waiting.nodelay(True)
     waiting.scrollok(True)
     key = ""
     waiting.addstr(
-        "Press any key (no special character) you wish to record. It will be printed in the terminal and stored in a *.csv file with time points in milliseconds. Actual milliseconds accuracy depends on your system and may vary. No warranty, use at own risk. Pressing multiple keys at once may freeze the script. Any stats you need to do yourself ;)\n\n"
+        "Press any key (no special character) you wish to record. It will be printed"
+        " in the terminal and stored in a *.csv file with time points in milliseconds. "
+        "Actual milliseconds accuracy depends on your system and may vary. No warranty, "
+        "use at own risk. Pressing multiple keys at once may freeze the script. Any stats "
+        "you need to do yourself ;)\n\n"
     )
     waiting.addstr(
-        "Press any alphanumeric key to start the counter (it will record this as initial key), and Shift+P to exit manually and save the output. If you set an observation time, the script will exit automatically."
+        "Press any alphanumeric key to start the counter (it will record this as initial "
+        "key), and Shift+P to exit manually and save the output. If you set an observation "
+        "time, the script will exit automatically."
     )
     # first loop just to wait until the run is supposed to start
     while True:
@@ -186,7 +200,7 @@ def main(waiting) -> None:
                 strokes[millis] = "End of recording - manual exit"
                 break
             # ending condition
-            if run_forever == False:
+            if not RUN_FOREVER:
                 if int(seconds) >= int(observation_time):
                     # substract again the time counted too much
                     stroke_summary[oldkey].append(
@@ -216,6 +230,19 @@ def flashing(self) -> None:
     curses.napms(100)
 
 
+def write_csv(
+    output_dir: pathlib.Path, base_file_name: str, suffix: str, header: str, data: dict
+) -> None:
+    # Construct the file path
+    file_path = output_dir / f"{base_file_name}{suffix}.csv"
+
+    # Write to the file
+    with file_path.open("w") as writefile:
+        writefile.write(header + "\n")
+        for key, value in sorted(data.items(), key=lambda x: x[0]):
+            writefile.write(f"{key},{value}\n")
+
+
 # execute main function
 curses.wrapper(main)
 
@@ -235,16 +262,11 @@ drop = stroke_summary_sums.pop("", None)
 # Define the base file name
 base_file_name = args.base_name + "_" + str(observation).zfill(args.padding)
 
-# Write to the ethoc CSV file
-ethoc_file_path = args.output_dir / (base_file_name + "_ethoc.csv")
-with ethoc_file_path.open("w") as writefile:
-    writefile.write("Time in ms,key pressed\n")
-    for i, j in sorted(strokes.items(), key=lambda x: x[0]):
-        writefile.write(f"{i},{j}\n")
-
-# Write to the summary CSV file
-summary_file_path = args.output_dir / (base_file_name + "_summary.csv")
-with summary_file_path.open("w") as writefile:
-    writefile.write("key pressed,summed up time\n")
-    for i, j in sorted(stroke_summary_sums.items(), key=lambda x: x[0]):
-        writefile.write(f"{i},{j}\n")
+write_csv(args.output_dir, base_file_name, "_ethoc", "Time in ms,key pressed", strokes)
+write_csv(
+    args.output_dir,
+    base_file_name,
+    "_summary",
+    "key pressed,summed up time",
+    stroke_summary_sums,
+)
