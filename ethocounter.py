@@ -109,19 +109,19 @@ if args.observation_time:
     except ValueError as e:
         parser.error(str(e))
 
-# Check for existing observation files
-observation = 0
-base_path = args.output_dir
-for filename in base_path.glob("*_ethoc.csv"):
+# Check for existing observation files and count upwards if
+# one or more are present.
+observation_count = 0 # pylint: disable=invalid-name
+# mistaken as a constant by pylint
+for filename in args.output_dir.glob("*_ethoc.csv"):
     if filename.stem.startswith(args.base_name):
-        observation += 1
+        observation_count += 1
 
 # Determine observation time
 if args.observation_time is not None:
-    observation_time = int(args.observation_time)
-    RUN_FOREVER = False
+    OBSERVATION_TIME = int(args.observation_time)
 else:
-    RUN_FOREVER = True
+    OBSERVATION_TIME = 0 # runs until manual stop, also when '0' is entered
 
 # Initialize dictionaries for recording keystrokes and summaries
 strokes = dict()
@@ -154,18 +154,17 @@ def main(waiting) -> None:
         "time, the script will exit automatically."
     )
     # first loop just to wait until the run is supposed to start
-    while True:
+    while key == "":
         try:
-            key = waiting.getkey()
-            if re.match("(^[A-Za-z0-9])", str(key)):
+            stroke = waiting.getkey()
+            if re.match("(^[A-Za-z0-9])", str(stroke)):
                 waiting.addstr("\n Detected initial key:")
-                waiting.addstr(str(key))
-                if key:
+                waiting.addstr(str(stroke))
+                if stroke:
                     break
             else:
                 waiting.addstr("\n Please only use letters or numbers.")
-
-        except:
+        except curses.error:
             pass
     # records the starting Unix time in ms, will be substracted from key press times
     starttime = time.time()
@@ -200,17 +199,15 @@ def main(waiting) -> None:
                 strokes[millis] = "End of recording - manual exit"
                 break
             # ending condition
-            if not RUN_FOREVER:
-                if int(seconds) >= int(observation_time):
+            if OBSERVATION_TIME != 0:
+                if int(seconds) >= int(OBSERVATION_TIME):
                     # substract again the time counted too much
                     stroke_summary[oldkey].append(
-                        (millis - int(observation_time) * 1000) * -1
+                        (millis - int(OBSERVATION_TIME) * 1000) * -1
                     )
                     strokes[
                         millis
-                    ] = "End of recording - time out after {} seconds".format(
-                        str(seconds)
-                    )
+                    ] = f"End of recording - time out after {seconds} seconds"
                     break
             # save keystrokes in a dict
             strokes[millis] = key
@@ -219,11 +216,12 @@ def main(waiting) -> None:
                 "\n Time: " + str(seconds) + "s," + milliseconds + "ms: Detected key:"
             )
             waiting.addstr(str(key))
-        except:
+        except curses.error:
             pass
 
 
 def flashing(self) -> None:
+    """Signals the end of the observation"""
     self.addstr("TIME OUT")
     curses.beep()
     curses.flash()
@@ -231,10 +229,21 @@ def flashing(self) -> None:
 
 
 def write_csv(
-    output_dir: pathlib.Path, base_file_name: str, suffix: str, header: str, data: dict
+    output_dir: pathlib.Path, output_base_file_name: str, suffix: str, header: str, data: dict
 ) -> None:
+    """Writes the output CSV files as a comma separated tabular format.
+    
+    Args:
+        output_dir: The path where the files should be written
+        output_base_file_name: The base name, e.g. to name the observation
+        suffix: The suffix to each of the output files, summary and ethoc
+        header: The header written inside the tabular CSV file
+
+    Returns:
+        None
+    """
     # Construct the file path
-    file_path = output_dir / f"{base_file_name}{suffix}.csv"
+    file_path = output_dir / f"{output_base_file_name}{suffix}.csv"
 
     # Write to the file
     with file_path.open("w") as writefile:
@@ -253,14 +262,14 @@ curses.wrapper(flashing)
 # Sum up the summary lists
 stroke_summary_sums: Dict[str, int] = {}
 
-for key in list(stroke_summary.keys()):  # Create a list of keys to iterate over
-    stroke_summary_sums[key] = sum(stroke_summary[key])
+for keystroke in list(stroke_summary.keys()):  # Create a list of keys to iterate over
+    stroke_summary_sums[keystroke] = sum(stroke_summary[keystroke])
 
 # Remove the entry with an empty string key, if it exists
 drop = stroke_summary_sums.pop("", None)
 
 # Define the base file name
-base_file_name = args.base_name + "_" + str(observation).zfill(args.padding)
+base_file_name = args.base_name + "_" + str(observation_count).zfill(args.padding)
 
 write_csv(args.output_dir, base_file_name, "_ethoc", "Time in ms,key pressed", strokes)
 write_csv(
