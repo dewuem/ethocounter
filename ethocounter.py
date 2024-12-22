@@ -2,7 +2,7 @@
 
 """
 Author: Daniel Elsner
-Date: 2023-12-03
+Date: 2024-12-22
 
 Description:
     This script records a timestamp for each key press, displaying it on screen (in human-readable
